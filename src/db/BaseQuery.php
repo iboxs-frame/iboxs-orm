@@ -121,7 +121,7 @@ abstract class BaseQuery
     public function htmlAttrs($data){
         foreach ($data as $key => $value) {
             if(is_string($value)||is_array($value)){
-                $value=str_replace('<script','&lt;script',$value);
+                $value=str_replace('<script','&lt;script',''.$value);
                 $data[$key]=str_replace('script>','script&gt;',$value);
             }
         }
@@ -274,8 +274,83 @@ abstract class BaseQuery
 
         $array[$field] = $result;
         $this->result($array);
-
         return $array[$field];
+    }
+
+    /**
+     * 得到某个列的查询嵌套
+     * @access public
+     * @param string $column 字段名
+     * @return mixed
+     */
+    public function columnFun($column){
+        $that=$this;
+        $fun=(function($query) use($that,$column){
+            $query=$query->model($that->model)->options($that->getOptions());
+            $query->name=$that->getTable();
+            $query->field($column);
+        });
+        return $fun;
+    }
+
+    public function whereWordLike($column,$value){
+        $columnArr=explode('|',$column);
+        if(!is_array($value)){
+            $value=[$value];
+        }
+        $query=$this->where(function($query) use($columnArr,$value){
+            foreach ($columnArr as $column){
+                $query->where(function($quy) use($column,$value){
+                    $valueInfo=$value;
+                    $quy->where($column,'like',"%{$valueInfo[0]}%");
+                    unset($valueInfo[0]);
+                    foreach($valueInfo as $val){
+                        $quy->whereOr($column,'like',"%{$val}%");
+                    }
+                });
+            }
+        });
+        return $query;
+    }
+
+    public function whereWordLikeOr($column,$value){
+        $columnArr=explode('|',$column);
+        if(!is_array($value)){
+            $value=[$value];
+        }
+        $firstColumn=$columnArr[0];
+        $query=$this->where(function($query) use($firstColumn,$value){
+            $query->where(function($quy) use($firstColumn,$value){
+                $valueInfo=$value;
+                $quy->where($firstColumn,'like',"%{$valueInfo[0]}%");
+                unset($valueInfo[0]);
+                foreach($valueInfo as $val){
+                    $quy->whereOr($firstColumn,'like',"%{$val}%");
+                }
+            });
+        });
+        unset($columnArr[0]);
+        $query=$this->whereOr(function($query) use($columnArr,$value){
+            foreach ($columnArr as $column){
+                $query->whereOr(function($quy) use($column,$value){
+                    $valueInfo=$value;
+                    $quy->where($column,'like',"%{$valueInfo[0]}%");
+                    unset($valueInfo[0]);
+                    foreach($valueInfo as $val){
+                        $quy->whereOr($column,'like',"%{$val}%");
+                    }
+                });
+            }
+        });
+        return $query;
+    }
+
+    /**
+     * 判断数据是否已存在
+     * @return bool
+     */
+    public function exists(){
+        return $this->count()>0;
     }
 
     /**
