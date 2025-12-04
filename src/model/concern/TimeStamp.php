@@ -155,7 +155,7 @@ trait TimeStamp
                 $value = $this->formatDateTime('Y-m-d H:i:s.u');
                 break;
             default:
-                if (false !== strpos($type, '\\')) {
+                if (false !== str_contains($type, '\\')) {
                     // 对象数据写入
                     $obj = new $type();
                     if (method_exists($obj, '__toString')) {
@@ -184,7 +184,7 @@ trait TimeStamp
 
         if (false === $format) {
             return $time;
-        } elseif (false !== strpos($format, '\\')) {
+        } elseif (false !== str_contains($format, '\\')) {
             return new $format($time);
         }
 

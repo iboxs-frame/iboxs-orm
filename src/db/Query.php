@@ -13,7 +13,6 @@ declare (strict_types = 1);
 namespace iboxs\db;
 
 use PDOStatement;
-use iboxs\helper\Str;
 
 /**
  * PDO数据查询类
@@ -438,7 +437,7 @@ class Query extends BaseQuery
         } else {
             $query = $this->options($options)->limit($count);
 
-            if (strpos($column, '.')) {
+            if (str_contains($column, '.')) {
                 [$alias, $key] = explode('.', $column);
             } else {
                 $key = $column;

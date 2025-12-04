@@ -67,6 +67,30 @@ trait WhereQuery
         });
         return $query;
     }
+    /**
+     * 指定json_contains查询条件.
+     *
+     * @param mixed  $field     查询字段
+     * @param mixed  $condition 查询条件
+     * @param string $logic     查询逻辑 and or xor
+     *
+     * @return $this
+     */
+    public function whereJsonContains(string $field, $condition, string $logic = 'AND')
+    {
+        $value = is_null($condition) ? 'NULL' : '\'' . json_encode($condition) . '\'';
+
+        if (str_contains($field, '->')) {
+            [$field, $path] = explode('->', $field, 2);
+            return $this->whereRaw('json_contains(' . $field . ', ' . $value . ', \'$.'. str_replace('->', '.', $path) . '\')', [], $logic);
+        }
+        return $this->whereRaw('json_contains(' . $field . ', ' . $value . ')', [], $logic);
+    }
+
+    public function whereOrJsonContains(string $field, $condition)
+    {
+        return $this->whereJsonContains($field, $condition, 'OR');
+    }
 
     /**
      * 解析Query对象查询条件
@@ -82,7 +106,7 @@ trait WhereQuery
             $via = $query->getOptions('via');
             foreach ($this->options['where'] as $logic => &$where) {
                 foreach ($where as $key => &$val) {
-                    if (is_array($val) && !strpos($val[0], '.')) {
+                    if (is_array($val) && !str_contains($val[0], '.')) {
                         $val[0] = $via . '.' . $val[0];
                     }
                 }
@@ -191,6 +215,11 @@ trait WhereQuery
     public function whereIn(string $field, $condition, string $logic = 'AND')
     {
         return $this->parseWhereExp($logic, $field, 'IN', $condition, [], true);
+    }
+
+    public function whereOrIn(string $field, $condition, string $logic = 'AND')
+    {
+        return $this->parseWhereExp('OR', $field, 'IN', $condition, [], true);
     }
 
     /**
@@ -393,7 +422,7 @@ trait WhereQuery
     {
         $logic = strtoupper($logic);
 
-        if (is_string($field) && !empty($this->options['via']) && false === strpos($field, '.')) {
+        if (is_string($field) && !empty($this->options['via']) && false === str_contains($field, '.')) {
             $field = $this->options['via'] . '.' . $field;
         }
 
@@ -491,18 +520,15 @@ trait WhereQuery
      */
     protected function parseArrayWhereItems(array $field, string $logic)
     {
-        if (key($field) !== 0) {
-            $where = [];
-            foreach ($field as $key => $val) {
-                if ($val instanceof Raw) {
-                    $where[] = [$key, 'exp', $val];
-                } else {
-                    $where[] = is_null($val) ? [$key, 'NULL', ''] : [$key, is_array($val) ? 'IN' : '=', $val];
-                }
+        $where = [];
+        foreach ($field as $key => $val) {
+            if (is_int($key)) {
+                $where[] = $val;
+            } elseif ($val instanceof Raw) {
+                $where[] = [$key, 'exp', $val];
+            } else {
+                $where[] = is_null($val) ? [$key, 'NULL', ''] : [$key, is_array($val) ? 'IN' : '=', $val];
             }
-        } else {
-            // 数组批量查询
-            $where = $field;
         }
 
         if (!empty($where)) {

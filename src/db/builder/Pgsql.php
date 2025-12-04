@@ -74,11 +74,11 @@ class Pgsql extends Builder
 
         $key = trim($key);
 
-        if (strpos($key, '->') && false === strpos($key, '(')) {
+        if (str_contains($key, '->') && false === str_contains($key, '(')) {
             // JSON字段支持
             [$field, $name] = explode('->', $key);
             $key            = '"' . $field . '"' . '->>\'' . $name . '\'';
-        } elseif (strpos($key, '.')) {
+        } elseif (str_contains($key, '.')) {
             [$table, $key] = explode('.', $key, 2);
 
             $alias = $query->getOptions('alias');

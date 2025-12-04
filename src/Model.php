@@ -242,7 +242,6 @@ abstract class Model implements JsonSerializable, ArrayAccess, Arrayable, Jsonab
                 call_user_func($maker, $this);
             }
         }
-
         // 执行初始化操作
         $this->initialize();
     }
@@ -846,7 +845,7 @@ abstract class Model implements JsonSerializable, ArrayAccess, Arrayable, Jsonab
             $model->setSuffix($suffix);
         }
 
-        $data=$this->htmlAttrs($data);
+        $data=$model->htmlAttrs($data);
         $model->replace($replace)->save($data);
 
         return $model;

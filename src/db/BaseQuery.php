@@ -120,7 +120,7 @@ abstract class BaseQuery
 
     public function htmlAttrs($data){
         foreach ($data as $key => $value) {
-            if(is_string($value)||is_array($value)){
+            if(is_string($value)){
                 $value=str_replace('<script','&lt;script',''.$value);
                 $data[$key]=str_replace('script>','script&gt;',$value);
             }
@@ -178,6 +178,14 @@ abstract class BaseQuery
     {
         $this->name = $name;
         return $this;
+    }
+
+    /**
+     * 判断数据是否已存在
+     * @return bool
+     */
+    public function exists(){
+        return $this->count()>0;
     }
 
     /**
@@ -293,6 +301,26 @@ abstract class BaseQuery
         return $fun;
     }
 
+    public function whereWordLeftLike($column,$value){
+        $columnArr=explode('|',$column);
+        if(!is_array($value)){
+            $value=[$value];
+        }
+        $query=$this->where(function($query) use($columnArr,$value){
+            foreach ($columnArr as $column){
+                $query->where(function($quy) use($column,$value){
+                    $valueInfo=$value;
+                    $quy->where($column,'like',"{$valueInfo[0]}%");
+                    unset($valueInfo[0]);
+                    foreach($valueInfo as $val){
+                        $quy->whereOr($column,'like',"{$val}%");
+                    }
+                });
+            }
+        });
+        return $query;
+    }
+
     public function whereWordLike($column,$value){
         $columnArr=explode('|',$column);
         if(!is_array($value)){
@@ -345,12 +373,34 @@ abstract class BaseQuery
         return $query;
     }
 
-    /**
-     * 判断数据是否已存在
-     * @return bool
-     */
-    public function exists(){
-        return $this->count()>0;
+    public function whereWordLeftLikeOr($column,$value){
+        $columnArr=explode('|',$column);
+        if(!is_array($value)){
+            $value=[$value];
+        }
+        $query=$this->where(function($query) use($value,$columnArr){
+            $firstColumn=$columnArr[0];
+            $query->where(function($quy) use($firstColumn,$value){
+                $valueInfo=$value;
+                $quy->where($firstColumn,'like',"{$valueInfo[0]}%");
+                unset($valueInfo[0]);
+                foreach($valueInfo as $val){
+                    $quy->whereOr($firstColumn,'like',"{$val}%");
+                }
+            });
+            unset($columnArr[0]);
+            foreach ($columnArr as $column){
+                $query->whereOr(function($quy) use($column,$value){
+                    $valueInfo=$value;
+                    $quy->where($column,'like',"{$valueInfo[0]}%");
+                    unset($valueInfo[0]);
+                    foreach($valueInfo as $val){
+                        $quy->whereOr($column,'like',"{$val}%");
+                    }
+                });
+            }
+        });
+        return $query;
     }
 
     /**
@@ -367,7 +417,14 @@ abstract class BaseQuery
         if (count($result) != count($result, 1)) {
             $this->resultSet($result, false);
         }
-
+        if(is_string($field)){
+            $method = 'get' . Str::studly($field) . 'Attr';
+            if (method_exists($this->model, $method)) {
+                foreach($result as $k=>$item){
+                    $result[$k]=$this->model->$method($item);
+                }
+            }
+        }
         return $result;
     }
 
@@ -582,10 +639,10 @@ abstract class BaseQuery
     public function table($table)
     {
         if (is_string($table)) {
-            if (strpos($table, ')')) {
+            if (str_contains($table, ')')) {
                 // 子查询
-            } elseif (false === strpos($table, ',')) {
-                if (strpos($table, ' ')) {
+            } elseif (false === str_contains($table, ',')) {
+                if (str_contains($table, ' ')) {
                     [$item, $alias] = explode(' ', $table);
                     $table          = [];
                     $this->alias([$item => $alias]);
@@ -597,7 +654,7 @@ abstract class BaseQuery
 
                 foreach ($tables as $item) {
                     $item = trim($item);
-                    if (strpos($item, ' ')) {
+                    if (str_contains($item, ' ')) {
                         [$item, $alias] = explode(' ', $item);
                         $this->alias([$item => $alias]);
                         $table[$item] = $alias;
@@ -645,7 +702,7 @@ abstract class BaseQuery
             if (!empty($this->options['via'])) {
                 $field = $this->options['via'] . '.' . $field;
             }
-            if (strpos($field, ',')) {
+            if (str_contains($field, ',')) {
                 $field = array_map('trim', explode(',', $field));
             } else {
                 $field = empty($order) ? $field : [$field => $order];
@@ -855,10 +912,9 @@ abstract class BaseQuery
      * @param mixed             $key    缓存key
      * @param integer|\DateTime $expire 缓存有效期
      * @param string|array      $tag    缓存标签
-     * @param bool              $always 始终缓存
      * @return $this
      */
-    public function cache($key = true, $expire = null, $tag = null, bool $always = false)
+    public function cache($key = true, $expire = null, $tag = null)
     {
         if (false === $key || !$this->getConnection()->getCache()) {
             return $this;
@@ -869,8 +925,7 @@ abstract class BaseQuery
             $key    = true;
         }
 
-        $this->options['cache']        = [$key, $expire, $tag];
-        $this->options['cache_always'] = $always;
+        $this->options['cache']     = [$key, $expire, $tag ?: $this->getTable()];
 
         return $this;
     }
@@ -885,7 +940,23 @@ abstract class BaseQuery
      */
     public function cacheAlways($key = true, $expire = null, $tag = null)
     {
-        return $this->cache($key, $expire, $tag, true);
+        $this->options['cache_always'] = true;
+        return $this->cache($key, $expire, $tag);
+    }
+
+    /**
+     * 强制更新缓存
+     *
+     * @param mixed         $key    缓存key
+     * @param int|\DateTime $expire 缓存有效期
+     * @param string|array  $tag    缓存标签
+     *
+     * @return $this
+     */
+    public function cacheForce($key = true, $expire = null, $tag = null)
+    {
+        $this->options['force_cache'] = true;
+        return $this->cache($key, $expire, $tag);
     }
 
     /**
@@ -1075,7 +1146,6 @@ abstract class BaseQuery
     public function insert(array $data = [], bool $getLastInsID = false)
     {
         if (!empty($data)) {
-            $data=$this->htmlAttrs($data);
             $this->options['data'] = $data;
         }
 
@@ -1090,7 +1160,6 @@ abstract class BaseQuery
      */
     public function insertGetId(array $data)
     {
-        $data=$this->htmlAttrs($data);
         return $this->insert($data, true);
     }
 
@@ -1115,6 +1184,23 @@ abstract class BaseQuery
             $tmpData[]=$this->htmlAttrs($val);
         }
         return $this->connection->insertAll($this, $dataSet, $limit);
+    }
+
+    /**
+     * 批量插入记录
+     * @access public
+     * @param array   $keys 键值
+     * @param array   $values 数据
+     * @param integer $limit   每次写入数据限制
+     * @return integer
+     */
+    public function insertAllByKeys(array $keys, array $values, int $limit = 0): int
+    {
+        if (empty($limit) && !empty($this->options['limit']) && is_numeric($this->options['limit'])) {
+            $limit = (int) $this->options['limit'];
+        }
+
+        return $this->connection->insertAllByKeys($this, $keys, $values, $limit);
     }
 
     /**
@@ -1324,6 +1410,11 @@ abstract class BaseQuery
         $this->options = $options;
 
         return $options;
+    }
+
+    public function parseModel()
+    {
+        return $this->model;
     }
 
     /**

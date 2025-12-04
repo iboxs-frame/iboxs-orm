@@ -148,7 +148,7 @@ trait RelationShip
             if (is_array($relation)) {
                 $subRelation = $relation;
                 $relation    = $key;
-            } elseif (strpos($relation, '.')) {
+            } elseif (str_contains($relation, '.')) {
                 [$relation, $subRelation] = explode('.', $relation, 2);
             }
 
@@ -263,7 +263,7 @@ trait RelationShip
             if (is_array($relation)) {
                 $subRelation = $relation;
                 $relation    = $key;
-            } elseif (strpos($relation, '.')) {
+            } elseif (str_contains($relation, '.')) {
                 [$relation, $subRelation] = explode('.', $relation, 2);
 
                 $subRelation = [$subRelation];
@@ -311,7 +311,7 @@ trait RelationShip
             if (is_array($relation)) {
                 $subRelation = $relation;
                 $relation    = $key;
-            } elseif (strpos($relation, '.')) {
+            } elseif (str_contains($relation, '.')) {
                 [$relation, $subRelation] = explode('.', $relation, 2);
 
                 $subRelation = [$subRelation];
@@ -684,7 +684,7 @@ trait RelationShip
      */
     protected function parseModel(string $model): string
     {
-        if (false === strpos($model, '\\')) {
+        if (false === str_contains($model, '\\')) {
             $path = explode('\\', static::class);
             array_pop($path);
             array_push($path, Str::studly($model));
@@ -702,7 +702,7 @@ trait RelationShip
      */
     protected function getForeignKey(string $name): string
     {
-        if (strpos($name, '\\')) {
+        if (str_contains($name, '\\')) {
             $name = class_basename($name);
         }
 

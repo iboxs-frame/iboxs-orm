@@ -205,11 +205,11 @@ trait SoftDelete
             return false;
         }
 
-        if (false === strpos($field, '.')) {
+        if (false === str_contains($field, '.')) {
             $field = '__TABLE__.' . $field;
         }
 
-        if (!$read && strpos($field, '.')) {
+        if (!$read && str_contains($field, '.')) {
             $array = explode('.', $field);
             $field = array_pop($array);
         }

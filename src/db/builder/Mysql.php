@@ -12,6 +12,7 @@ declare (strict_types = 1);
 
 namespace iboxs\db\builder;
 
+use PDO;
 use iboxs\db\Builder;
 use iboxs\db\exception\DbException as Exception;
 use iboxs\db\Query;
@@ -101,7 +102,8 @@ class Mysql extends Builder
                 $this->parseComment($query, $options['comment']),
                 $this->parseForce($query, $options['force']),
             ],
-            $this->selectSql);
+            $this->selectSql
+        );
     }
 
     /**
@@ -136,7 +138,8 @@ class Mysql extends Builder
                 $this->parseDuplicate($query, $options['duplicate']),
                 $this->parseComment($query, $options['comment']),
             ],
-            $this->insertSql);
+            $this->insertSql
+        );
     }
 
     /**
@@ -144,10 +147,9 @@ class Mysql extends Builder
      * @access public
      * @param  Query     $query   查询对象
      * @param  array     $dataSet 数据集
-     * @param  bool      $replace 是否replace
      * @return string
      */
-    public function insertAll(Query $query, array $dataSet, bool $replace = false): string
+    public function insertAll(Query $query, array $dataSet): string
     {
         $options = $query->getOptions();
 
@@ -181,7 +183,7 @@ class Mysql extends Builder
         return str_replace(
             ['%INSERT%', '%EXTRA%', '%TABLE%', '%PARTITION%', '%FIELD%', '%DATA%', '%DUPLICATE%', '%COMMENT%'],
             [
-                $replace ? 'REPLACE' : 'INSERT',
+                !empty($options['replace']) ? 'REPLACE' : 'INSERT',
                 $this->parseExtra($query, $options['extra']),
                 $this->parseTable($query, $options['table']),
                 $this->parsePartition($query, $options['partition']),
@@ -190,7 +192,56 @@ class Mysql extends Builder
                 $this->parseDuplicate($query, $options['duplicate']),
                 $this->parseComment($query, $options['comment']),
             ],
-            $this->insertAllSql);
+            $this->insertAllSql
+        );
+    }
+
+    /**
+     * 生成insertall SQL
+     * @access public
+     * @param  Query    $query   查询对象
+     * @param  array    $keys 键值
+     * @param  array    $values 数据
+     * @return string
+     */
+    public function insertAllByKeys(Query $query, array $keys, array $datas): string
+    {
+        $options = $query->getOptions();
+
+        // 获取绑定信息
+        $bind   = $query->getFieldsBindType();
+        $fields = [];
+        $values = [];
+
+        foreach ($keys as $field) {
+            $fields[] = $this->parseKey($query, $field);
+        }
+
+        foreach ($datas as $data) {
+            foreach ($data as $key => &$val) {
+                if (!$query->isAutoBind()) {
+                    $val = PDO::PARAM_STR == $bind[$keys[$key]] ? '\'' . $val . '\'' : $val;
+                } else {
+                    $val = $this->parseDataBind($query, $keys[$key], $val, $bind);
+                }
+            }
+            $values[] = '( ' . implode(',', $data) . ' )';
+        }
+
+        return str_replace(
+            ['%INSERT%', '%EXTRA%', '%TABLE%', '%PARTITION%', '%FIELD%', '%DATA%', '%DUPLICATE%', '%COMMENT%'],
+            [
+                !empty($options['replace']) ? 'REPLACE' : 'INSERT',
+                $this->parseExtra($query, $options['extra']),
+                $this->parseTable($query, $options['table']),
+                $this->parsePartition($query, $options['partition']),
+                implode(' , ', $fields),
+                implode(' , ', $values),
+                $this->parseDuplicate($query, $options['duplicate']),
+                $this->parseComment($query, $options['comment']),
+            ],
+            $this->insertAllSql
+        );
     }
 
     /**
@@ -208,9 +259,10 @@ class Mysql extends Builder
         if (empty($data)) {
             return '';
         }
+
         $set = [];
         foreach ($data as $key => $val) {
-            $set[] = $key . ' = ' . $val;
+            $set[] = (str_contains($key, '->') ? strstr($key, '->', true) : $key) . ' = ' . $val;
         }
 
         return str_replace(
@@ -227,7 +279,8 @@ class Mysql extends Builder
                 $this->parseLock($query, $options['lock']),
                 $this->parseComment($query, $options['comment']),
             ],
-            $this->updateSql);
+            $this->updateSql
+        );
     }
 
     /**
@@ -254,7 +307,8 @@ class Mysql extends Builder
                 $this->parseLock($query, $options['lock']),
                 $this->parseComment($query, $options['comment']),
             ],
-            $this->deleteSql);
+            $this->deleteSql
+        );
     }
 
     /**
@@ -313,16 +367,16 @@ class Mysql extends Builder
 
         $key = trim($key);
 
-        if (strpos($key, '->>') && false === strpos($key, '(')) {
+        if (str_contains($key, '->>') && false === str_contains($key, '(')) {
             // JSON字段支持
             [$field, $name] = explode('->>', $key, 2);
 
-            return $this->parseKey($query, $field, true) . '->>\'$' . (strpos($name, '[') === 0 ? '' : '.') . str_replace('->>', '.', $name) . '\'';
-        } elseif (strpos($key, '->') && false === strpos($key, '(')) {
+            return $this->parseKey($query, $field, true) . '->>\'$' . (str_contains($name, '[') === 0 ? '' : '.') . str_replace('->>', '.', $name) . '\'';
+        } elseif (str_contains($key, '->') && false === str_contains($key, '(')) {
             // JSON字段支持
             [$field, $name] = explode('->', $key, 2);
-            return 'json_extract(' . $this->parseKey($query, $field, true) . ', \'$' . (strpos($name, '[') === 0 ? '' : '.') . str_replace('->', '.', $name) . '\')';
-        } elseif (strpos($key, '.') && !preg_match('/[,\'\"\(\)`\s]/', $key)) {
+            return 'json_extract(' . $this->parseKey($query, $field, true) . ', \'$' . (str_contains($name, '[') === 0 ? '' : '.') . str_replace('->', '.', $name) . '\')';
+        } elseif (str_contains($key, '.') && !preg_match('/[,\'\"\(\)`\s]/', $key)) {
             [$table, $key] = explode('.', $key, 2);
 
             $alias = $query->getOptions('alias');
@@ -346,7 +400,7 @@ class Mysql extends Builder
         }
 
         if (isset($table)) {
-            if (strpos($table, '.')) {
+            if (str_contains($table, '.')) {
                 $table = str_replace('.', '`.`', $table);
             }
 

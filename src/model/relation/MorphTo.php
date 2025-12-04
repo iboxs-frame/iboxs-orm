@@ -172,7 +172,7 @@ class MorphTo extends Relation
             $model = $this->alias[$model];
         }
 
-        if (false === strpos($model, '\\')) {
+        if (false === str_contains($model, '\\')) {
             $path = explode('\\', get_class($this->parent));
             array_pop($path);
             array_push($path, Str::studly($model));

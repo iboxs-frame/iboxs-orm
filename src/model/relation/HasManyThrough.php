@@ -314,7 +314,7 @@ class HasManyThrough extends Relation
         $throughKey   = $this->throughKey;
         $modelTable   = $this->parent->getTable();
 
-        if (false === strpos($field, '.')) {
+        if (false === str_contains($field, '.')) {
             $field = $alias . '.' . $field;
         }
 
@@ -347,7 +347,7 @@ class HasManyThrough extends Relation
         $throughKey   = $this->throughKey;
         $modelTable   = $this->parent->getTable();
 
-        if (false === strpos($field, '.')) {
+        if (false === str_contains($field, '.')) {
             $field = $alias . '.' . $field;
         }
 

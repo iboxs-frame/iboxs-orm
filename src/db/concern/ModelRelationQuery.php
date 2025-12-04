@@ -194,7 +194,7 @@ trait ModelRelationQuery
 
         $this->options['with_attr'][$name] = $callback;
 
-        if (strpos($name, '.')) {
+        if (str_contains($name, '.')) {
             [$relation, $field] = explode('.', $name);
 
             if (!empty($this->options['json']) && in_array($relation, $this->options['json'])) {
@@ -251,7 +251,7 @@ trait ModelRelationQuery
             } elseif (is_array($relation)) {
                 $field    = $relation;
                 $relation = $key;
-            } elseif (is_string($relation) && strpos($relation, '.')) {
+            } elseif (is_string($relation) && str_contains($relation, '.')) {
                 $relation = strstr($relation, '.', true);
             }
 
@@ -512,7 +512,9 @@ trait ModelRelationQuery
             !empty($this->options['is_resultSet']) ? null : $this->getModelUpdateCondition($this->options),
             $this->options
         );
-
+        if(!isset($this->options['filter'])){
+            $this->options['filter'] = [];
+        }
         // 模型数据处理
         foreach ($this->options['filter'] as $filter) {
             call_user_func_array($filter, [$result, $this->options]);

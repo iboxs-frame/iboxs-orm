@@ -422,7 +422,7 @@ trait Attribute
 
         if (is_array($type)) {
             [$type, $param] = $type;
-        } elseif (strpos($type, ':')) {
+        } elseif (str_contains($type, ':')) {
             [$type, $param] = explode(':', $type, 2);
         }
 
@@ -464,7 +464,7 @@ trait Attribute
                 $value = serialize($value);
                 break;
             default:
-                if (is_object($value) && false !== strpos($type, '\\') && method_exists($value, '__toString')) {
+                if (is_object($value) && false !== str_contains($type, '\\') && method_exists($value, '__toString')) {
                     // 对象类型
                     $value = $value->__toString();
                 }
@@ -600,7 +600,7 @@ trait Attribute
 
         if (is_array($type)) {
             [$type, $param] = $type;
-        } elseif (strpos($type, ':')) {
+        } elseif (str_contains($type, ':')) {
             [$type, $param] = explode(':', $type, 2);
         }
 
@@ -647,7 +647,7 @@ trait Attribute
                 }
                 break;
             default:
-                if (false !== strpos($type, '\\')) {
+                if (false !== str_contains($type, '\\')) {
                     // 对象类型
                     $value = new $type($value);
                 }
@@ -672,7 +672,7 @@ trait Attribute
         } else {
             $name = $this->getRealFieldName($name);
 
-            if (strpos($name, '.')) {
+            if (str_contains($name, '.')) {
                 [$name, $key] = explode('.', $name);
 
                 $this->withAttr[$name][$key] = $callback;

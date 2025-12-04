@@ -64,7 +64,7 @@ interface ConnectionInterface
      * @param CacheInterface $cache
      * @return void
      */
-    public function setCache(CacheInterface $cache);
+    public function setCache($cache);
 
     /**
      * 获取数据库的配置参数

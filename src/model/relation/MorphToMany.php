@@ -260,7 +260,7 @@ class MorphToMany extends BelongsToMany
         foreach ($list as $set) {
             $pivot = [];
             foreach ($set->getData() as $key => $val) {
-                if (strpos($key, '__')) {
+                if (str_contains($key, '__')) {
                     [$name, $attr] = explode('__', $key, 2);
                     if ('pivot' == $name) {
                         $pivot[$attr] = $val;

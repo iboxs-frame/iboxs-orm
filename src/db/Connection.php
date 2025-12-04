@@ -8,7 +8,7 @@
 // +----------------------------------------------------------------------
 // | Author: liu21st <liu21st@gmail.com>
 // +----------------------------------------------------------------------
-declare (strict_types = 1);
+declare(strict_types=1);
 
 namespace iboxs\db;
 
@@ -193,7 +193,7 @@ abstract class Connection implements ConnectionInterface
      * @param CacheInterface $cache
      * @return void
      */
-    public function setCache(CacheInterface $cache)
+    public function setCache($cache)
     {
         $this->cache = $cache;
     }
@@ -235,7 +235,7 @@ abstract class Connection implements ConnectionInterface
         $listen = $this->db->getListen();
         if (empty($listen)) {
             $listen[] = function ($sql, $time, $master) {
-                if (0 === strpos($sql, 'CONNECT:')) {
+                if (0 === str_contains($sql, 'CONNECT:')) {
                     $this->db->log($sql);
                     return;
                 }

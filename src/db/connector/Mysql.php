@@ -55,8 +55,8 @@ class Mysql extends PDOConnection
     {
         [$tableName] = explode(' ', $tableName);
 
-        if (false === strpos($tableName, '`')) {
-            if (strpos($tableName, '.')) {
+        if (false === str_contains($tableName, '`')) {
+            if (str_contains($tableName, '.')) {
                 $tableName = str_replace('.', '`.`', $tableName);
             }
             $tableName = '`' . $tableName . '`';

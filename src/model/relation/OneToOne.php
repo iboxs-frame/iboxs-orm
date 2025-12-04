@@ -94,7 +94,7 @@ abstract class OneToOne extends Relation
 
             $foreignKeyExp = $this->foreignKey;
 
-            if (strpos($foreignKeyExp, '.') === false) {
+            if (str_contains($foreignKeyExp, '.') === false) {
                 $foreignKeyExp = $name . '.' . $this->foreignKey;
             }
 
@@ -103,7 +103,7 @@ abstract class OneToOne extends Relation
             
             $foreignKeyExp = $this->foreignKey;
 
-            if (strpos($foreignKeyExp, '.') === false) {
+            if (str_contains($foreignKeyExp, '.') === false) {
                 $foreignKeyExp = $joinAlias . '.' . $this->foreignKey;
             }
 
@@ -259,7 +259,7 @@ abstract class OneToOne extends Relation
     {
         // 重新组装模型数据
         foreach ($result->getData() as $key => $val) {
-            if (strpos($key, '__')) {
+            if (str_contains($key, '__')) {
                 [$name, $attr] = explode('__', $key, 2);
                 if ($name == $relation) {
                     $list[$name][$attr] = $val;

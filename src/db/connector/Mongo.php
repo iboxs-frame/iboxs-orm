@@ -11,6 +11,7 @@ declare (strict_types = 1);
 namespace iboxs\db\connector;
 
 use Closure;
+use iboxs\basic\Basic;
 use MongoDB\BSON\ObjectID;
 use MongoDB\Driver\BulkWrite;
 use MongoDB\Driver\Command;
@@ -30,6 +31,7 @@ use iboxs\db\Connection;
 use iboxs\db\exception\DbEventException;
 use iboxs\db\exception\DbException as Exception;
 use iboxs\db\Mongo as Query;
+use MongoDB\BSON\UTCDateTime;
 
 /**
  * Mongo数据库驱动
@@ -47,6 +49,7 @@ class Mongo extends Connection
     protected $cursor; // MongoCursor Object
     protected $session_uuid; // sessions会话列表当前会话数组key 随机生成
     protected $sessions = []; // 会话列表
+    protected $options = [];
 
     /** @var Builder */
     protected $builder;
@@ -211,7 +214,6 @@ class Mongo extends Connection
     {
         // 分析查询表达式
         $options = $query->parseOptions();
-
         // 生成MongoQuery对象
         $mongoQuery = $this->builder->select($query);
 
@@ -241,7 +243,7 @@ class Mongo extends Connection
         $options   = $query->getOptions();
         $namespace = $options['table'];
 
-        if (false === strpos($namespace, '.')) {
+        if (false === str_contains($namespace, '.')) {
             $namespace = $this->dbName . '.' . $namespace;
         }
 
@@ -256,7 +258,7 @@ class Mongo extends Connection
 
         $readPreference       = $options['readPreference'] ?? null;
         $this->queryStartTime = microtime(true);
-
+        
         if ($session = $this->getSession()) {
             $this->cursor = $this->mongo->executeQuery($namespace, $query, [
                 'readPreference' => is_null($readPreference) ? new ReadPreference(ReadPreference::RP_PRIMARY) : $readPreference,
@@ -319,7 +321,6 @@ class Mongo extends Connection
     protected function mongoQuery(BaseQuery $query, $mongoQuery): array
     {
         $options = $query->parseOptions();
-
         if ($query->getOptions('cache')) {
             // 检查查询缓存
             $cacheItem = $this->parseCache($query, $query->getOptions('cache'));
@@ -336,15 +337,13 @@ class Mongo extends Connection
 
         $master = $query->getOptions('master') ? true : false;
         $this->getCursor($query, $mongoQuery, $master);
-
+        
         $resultSet = $this->getResult($options['typeMap']);
-
         if (isset($cacheItem) && $resultSet) {
             // 缓存数据集
             $cacheItem->set($resultSet);
             $this->cacheData($cacheItem);
         }
-
         return $resultSet;
     }
 
@@ -369,7 +368,7 @@ class Mongo extends Connection
         $options = $query->getOptions();
 
         $namespace = $options['table'];
-        if (false === strpos($namespace, '.')) {
+        if (false === str_contains($namespace, '.')) {
             $namespace = $this->dbName . '.' . $namespace;
         }
 
@@ -453,8 +452,8 @@ class Mongo extends Connection
         if (!empty($this->config['trigger_sql'])) {
             $this->trigger('', $master);
         }
-
-        return $this->getResult($typeMap);
+        $result=$this->getResult($typeMap);
+        return $result;
     }
 
     /**
@@ -469,23 +468,20 @@ class Mongo extends Connection
         if (is_null($typeMap)) {
             $typeMap = $this->typeMap;
         }
-
+        
         $typeMap = is_string($typeMap) ? ['root' => $typeMap] : $typeMap;
 
         $this->cursor->setTypeMap($typeMap);
 
         // 获取数据集
         $result = $this->cursor->toArray();
-
         if ($this->getConfig('pk_convert_id')) {
             // 转换ObjectID 字段
             foreach ($result as &$data) {
                 $this->convertObjectID($data);
             }
         }
-
         $this->numRows = count($result);
-
         return $result;
     }
 
@@ -527,6 +523,7 @@ class Mongo extends Connection
 
         switch (strtolower($type)) {
             case 'aggregate':
+            case 'aggregateCmd':
                 $this->queryStr = 'runCommand(' . ($data ? json_encode($data) : '') . ');';
                 break;
             case 'find':
@@ -557,7 +554,6 @@ class Mongo extends Connection
                 $this->queryStr = $data . '(' . json_encode($options) . ');';
                 break;
         }
-
         $this->options = $options;
     }
 
@@ -721,7 +717,11 @@ class Mongo extends Connection
         if (empty($options['data'])) {
             throw new Exception('miss data to insert');
         }
-
+        if($query->parseModel()->timeColumn){
+            $value=$options['data'][$query->parseModel()->timeColumn];
+            $options['data'][$query->parseModel()->timeColumn] = new UTCDateTime($value);
+            $query->setOption('data',$options['data']);
+        }
         // 生成bulk对象
         $bulk = $this->builder->insert($query);
 
@@ -1018,7 +1018,7 @@ class Mongo extends Connection
         // 执行查询操作
         $resultSet = $this->mongoQuery($query, $mongoQuery);
 
-        if (('*' == $field || strpos($field, ',')) && $key) {
+        if (('*' == $field || str_contains($field, ',')) && $key) {
             $result = array_column($resultSet, null, $key);
         } elseif (!empty($resultSet)) {
             $result = array_column($resultSet, $field, $key);
@@ -1056,8 +1056,8 @@ class Mongo extends Connection
             // 调用Builder封装的Command对象
             $command = $this->builder->$command($query, $extra);
         }
-
-        return $this->command($command, $db);
+        $result=$this->command($command, $db);
+        return $result;
     }
 
     /**

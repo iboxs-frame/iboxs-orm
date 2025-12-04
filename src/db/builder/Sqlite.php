@@ -73,7 +73,7 @@ class Sqlite extends Builder
 
         $key = trim($key);
 
-        if (strpos($key, '.') && !preg_match('/[,\'\"\(\)`\s]/', $key)) {
+        if (str_contains($key, '.') && !preg_match('/[,\'\"\(\)`\s]/', $key)) {
             [$table, $key] = explode('.', $key, 2);
 
             $alias = $query->getOptions('alias');

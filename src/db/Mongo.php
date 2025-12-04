@@ -57,7 +57,8 @@ class Mongo extends BaseQuery
     public function cmd($command, $extra = null, string $db = ''): array
     {
         $this->parseOptions();
-        return $this->connection->cmd($this, $command, $extra, $db);
+        $result=$this->connection->cmd($this, $command, $extra, $db);
+        return $result;
     }
 
     /**
@@ -100,6 +101,34 @@ class Mongo extends BaseQuery
         $result = $this->cmd('count');
 
         return $result[0]['n'];
+    }
+
+    /**
+     * 聚合查询
+     * @access public
+     * @param  string $aggregate 聚合指令
+     * @param  string $field     字段名
+     * @param  bool   $force   强制转为数字类型
+     * @return mixed
+     */
+    public function group(array $aggregate)
+    {
+        $result = $this->cmd('aggregate', $aggregate);
+        return $result;
+    }
+
+    /**
+     * 聚合查询
+     * @access public
+     * @param  string $aggregate 聚合指令
+     * @param  string $field     字段名
+     * @param  bool   $force   强制转为数字类型
+     * @return mixed
+     */
+    public function aggregateCmd(array $cmd)
+    {
+        $result = $this->cmd('aggregateCmd', $cmd);
+        return $result;
     }
 
     /**
@@ -481,18 +510,6 @@ class Mongo extends BaseQuery
     }
 
     /**
-     * 执行查询但只返回Cursor对象
-     * @access public
-     * @return Cursor
-     */
-    public function getCursor(): Cursor
-    {
-        $this->parseOptions();
-
-        return $this->connection->getCursor($this);
-    }
-
-    /**
      * 获取当前的查询标识
      * @access public
      * @param mixed $data 要序列化的数据
@@ -584,7 +601,7 @@ class Mongo extends BaseQuery
         } else {
             $query = $this->options($options)->limit($count);
 
-            if (strpos($column, '.')) {
+            if (str_contains($column, '.')) {
                 [$alias, $key] = explode('.', $column);
             } else {
                 $key = $column;

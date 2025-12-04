@@ -65,7 +65,7 @@ class BelongsToMany extends Relation
         $this->foreignKey = $foreignKey;
         $this->localKey   = $localKey;
 
-        if (false !== strpos($middle, '\\')) {
+        if (false !== str_contains($middle, '\\')) {
             $this->pivotName = $middle;
             $this->middle    = class_basename($middle);
         } else {
@@ -147,7 +147,7 @@ class BelongsToMany extends Relation
     {
         $pivot = [];
         foreach ($result->getData() as $key => $val) {
-            if (strpos($key, '__')) {
+            if (str_contains($key, '__')) {
                 [$name, $attr] = explode('__', $key, 2);
 
                 if ('pivot' == $name) {

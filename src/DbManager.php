@@ -140,7 +140,7 @@ class DbManager
      * @param CacheInterface $cache 缓存对象
      * @return void
      */
-    public function setCache(CacheInterface $cache): void
+    public function setCache($cache): void
     {
         $this->cache = $cache;
     }
@@ -151,7 +151,7 @@ class DbManager
      * @param LoggerInterface $log 日志对象
      * @return void
      */
-    public function setLog(LoggerInterface $log): void
+    public function setLog($log): void
     {
         $this->log = $log;
     }
@@ -165,11 +165,11 @@ class DbManager
      */
     public function log(string $log, string $type = 'sql')
     {
-        if ($this->log) {
-            $this->log->log($type, $log);
-        } else {
-            $this->dbLog[$type][] = $log;
-        }
+        // if ($this->log) {
+        //     $this->log->log($type, $log);
+        // } else {
+        //     $this->dbLog[$type][] = $log;
+        // }
     }
 
     /**
@@ -262,12 +262,11 @@ class DbManager
 
         $type = !empty($config['type']) ? $config['type'] : 'mysql';
 
-        if (false !== strpos($type, '\\')) {
+        if (false !== str_contains($type, '\\')) {
             $class = $type;
         } else {
             $class = '\\iboxs\\db\\connector\\' . ucfirst($type);
         }
-
         /** @var ConnectionInterface $connection */
         $connection = new $class($config);
         $connection->setDb($this);

@@ -57,7 +57,7 @@ class Mongo
      */
     protected function parseKey(Query $query, string $key): string
     {
-        if (0 === strpos($key, '__TABLE__.')) {
+        if (0 === str_contains($key, '__TABLE__.')) {
             [$collection, $key] = explode('.', $key, 2);
         }
 
@@ -111,8 +111,6 @@ class Mongo
                 $result[$item] = $val;
             } elseif (isset($val[0]) && 'exp' == $val[0]) {
                 $result[$item] = $val[1];
-            } elseif (is_null($val)) {
-                $result[$item] = 'NULL';
             } else {
                 $result[$item] = $this->parseValue($query, $val, $key);
             }
@@ -139,7 +137,7 @@ class Mongo
         foreach ($data as $key => $val) {
             $item = $this->parseKey($query, $key);
 
-            if (is_array($val) && isset($val[0]) && is_string($val[0]) && 0 === strpos($val[0], '$')) {
+            if (is_array($val) && isset($val[0]) && is_string($val[0]) && 0 === str_contains($val[0], '$')) {
                 $result[$val[0]][$item] = $this->parseValue($query, $val[1], $key);
             } else {
                 $result['$set'][$item] = $this->parseValue($query, $val, $key);
@@ -161,7 +159,6 @@ class Mongo
         if (empty($where)) {
             $where = [];
         }
-
         $filter = [];
         foreach ($where as $logic => $val) {
             $logic = '$' . strtolower($logic);
@@ -181,13 +178,13 @@ class Mongo
                     call_user_func_array($value, [ & $query]);
                     $filter[$logic][] = $this->parseWhere($query, $query->getOptions('where'));
                 } else {
-                    if (strpos($field, '|')) {
+                    if (str_contains($field, '|')) {
                         // 不同字段使用相同查询条件（OR）
                         $array = explode('|', $field);
                         foreach ($array as $k) {
                             $filter['$or'][] = $this->parseWhereItem($query, $k, $value);
                         }
-                    } elseif (strpos($field, '&')) {
+                    } elseif (str_contains($field, '&')) {
                         // 不同字段使用相同查询条件（AND）
                         $array = explode('&', $field);
                         foreach ($array as $k) {
@@ -507,10 +504,30 @@ class Mongo
                 $cmd[$option] = $options[$option];
             }
         }
-
+        if($cmd['limit']<1){
+            unset($cmd['limit']);
+        }
         $command = new Command($cmd);
         $this->log('cmd', 'count', $cmd);
 
+        return $command;
+    }
+
+    public function aggregateCmd(Query $query, array $cmds){
+        $options       = $query->getOptions();
+        $options       = $query->getOptions();
+        $pipeline = [
+            ['$match' => (object) $this->parseWhere($query, $options['where'])]
+        ];
+        $pipeline=array_merge($pipeline,$cmds);
+        $cmd= [
+            'aggregate'    => $options['table'],
+            'allowDiskUse' => true,
+            'pipeline'     => $pipeline,
+            'cursor'       => new \stdClass,
+        ];
+        $command = new Command($cmd);
+        $this->log('aggregate', $cmd);
         return $command;
     }
 
@@ -524,32 +541,22 @@ class Mongo
     public function aggregate(Query $query, array $extra): Command
     {
         $options       = $query->getOptions();
-        [$fun, $field] = $extra;
-
-        if ('id' == $field && $this->connection->getConfig('pk_convert_id')) {
-            $field = '_id';
-        }
-
-        $group = isset($options['group']) ? '$' . $options['group'] : null;
-
         $pipeline = [
             ['$match' => (object) $this->parseWhere($query, $options['where'])],
-            ['$group' => ['_id' => $group, 'aggregate' => ['$' . $fun => '$' . $field]]],
+            ['$group' => $extra],
         ];
-
         $cmd = [
             'aggregate'    => $options['table'],
             'allowDiskUse' => true,
             'pipeline'     => $pipeline,
             'cursor'       => new \stdClass,
         ];
-
+        // dd($pipeline);
         foreach (['explain', 'collation', 'bypassDocumentValidation', 'readConcern'] as $option) {
             if (isset($options[$option])) {
                 $cmd[$option] = $options[$option];
             }
         }
-
         $command = new Command($cmd);
 
         $this->log('aggregate', $cmd);
